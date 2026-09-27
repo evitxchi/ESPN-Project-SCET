@@ -95,37 +95,80 @@
     const rank = { LIVE: 0, HALFTIME: 1, DELAYED: 1, SUSPENDED: 1, PRE_GAME: 2, FINAL: 3 };
     return L.sort((a, b) => (b.assigned ? 1 : 0) - (a.assigned ? 1 : 0) || rank[a.status] - rank[b.status]);
   }
+  // ESPN scoreboard style: "6:48 - 3rd", "Top 7th", "67'", "Halftime", "Final"
+  const ORD = (n) => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
+  function bannerStatus(e) {
+    if (e.status === 'FINAL') return 'Final';
+    if (e.status === 'PRE_GAME') return e.period;
+    if (e.status === 'HALFTIME') return e.period === '2nd Int' ? 'End of 2nd' : 'Halftime';
+    const n = parseInt(String(e.period).replace(/\D/g, ''), 10);
+    if (e.clock != null && e.clockUp) return `${Math.floor(e.clock / 60)}' - 2nd Half`;
+    if (e.clock != null) return `${Math.floor(e.clock / 60)}:${String(e.clock % 60).padStart(2, '0')} - ${n ? ORD(n) : e.period}`;
+    if (/^(Top|Bot)/.test(e.period)) return `${e.period.slice(0, 3)} ${ORD(n)}`;
+    return e.period;
+  }
+  Desk.bannerStatus = bannerStatus;
+  const TEAM_COLOR = { NY: '#6ECEB2', LV: '#A7A8AA', LSU: '#461D7C', MISS: '#14213D', NYY: '#0C2340', BAL: '#DF4601', VIL: '#D8B800', BAR: '#A50044', NYR: '#0038A8', BOS: '#FFB81C', ALA: '#9E1B32', UGA: '#BA0C2F', KIM: '#5b6470', VAR: '#5b6470' };
+  const LEAGUE_LINKS = [['NFL', '#/sport/football?league=NFL'], ['NCAAF', '#/sport/football?league=NCAA%20Football'], ['MLB', '#/sport/baseball?league=MLB'], ['NBA', '#/sport/basketball?league=NBA'], ['Soccer', '#/sport/soccer'], ['WNBA', '#/sport/basketball?league=WNBA'], ['NHL', '#/sport/hockey?league=NHL'], ['More Sports', '#/sports']];
+  function renderLeagueLinks() {
+    const cur = location.hash;
+    $('#league-links').innerHTML = LEAGUE_LINKS.map(([l, h]) => `<a href="${h}" class="${cur === h ? 'active' : ''}">${l}</a>`).join('');
+  }
   function renderLiveBanner() {
     const st = S().settings;
     const rail = $('.live-rail');
     const sl = rail ? rail.scrollLeft : 0;
-    const nets = [...new Set(S().live.map((e) => e.network))];
     const L = liveVisible();
-    const badge = (e) => ({ LIVE: '<span class="lc-badge">LIVE</span>', HALFTIME: '<span class="lc-badge half">INT</span>', PRE_GAME: '<span class="lc-badge pre">UPCOMING</span>', FINAL: '<span class="lc-badge final">FINAL</span>' })[e.status] || `<span class="lc-badge pre">${e.status}</span>`;
     const team = (t, other, e) => {
       if (!t) return '';
-      const lead = other && t.score != null && other.score != null && t.score >= other.score;
-      const label = !t.abbr || t.name.toLowerCase().includes(t.abbr.toLowerCase()) || ['tennis', 'mma'].includes(e.sport) ? t.name : `${t.abbr} ${t.name}`;
-      return `<div class="${lead ? 'lead' : 'trail'}"><span>${esc(label)}</span><b data-score="${esc(t.abbr)}">${st.hideScores || t.score == null ? '' : t.score}</b></div>`;
+      const trail = other && t.score != null && other.score != null && t.score < other.score && e.status === 'FINAL';
+      const isHome = t === e.home;
+      const poss = e.poss && ((e.poss === 'home') === isHome);
+      const abbr = t.abbr || t.name;
+      return `<div class="sb-team ${trail ? 'trail' : ''}"><span class="sb-logo" style="background:${TEAM_COLOR[t.abbr] || '#5b6470'}">${esc(abbr.slice(0, 3))}</span><span class="sb-abbr">${esc(['tennis', 'mma'].includes(e.sport) ? t.name : abbr)}</span><span>${poss && e.status === 'LIVE' ? '<i class="sb-poss" title="Possession"></i>' : ''}</span><b data-score="${esc(t.abbr)}">${st.hideScores || t.score == null ? '' : t.score}</b></div>`;
     };
+    const card = (e) => {
+      const live = ['LIVE', 'HALFTIME'].includes(e.status);
+      const oneLine = !e.home;
+      return `<button class="sb-card ${e.assigned ? 'sb-asg' : ''}" data-act="${e.status === 'PRE_GAME' ? 'live-remind' : 'live-watch'}" data-e="${e.id}" aria-label="${esc(Desk.eventName(e))}, ${esc(bannerStatus(e))}${e.assigned ? ', assigned to you' : ''}">
+        <div class="sb-top"><span class="sb-status ${live ? '' : 'muted'}" data-clock="${e.id}">${esc(bannerStatus(e))}</span><span class="sb-net">${esc(e.network)}</span></div>
+        <div class="sb-teams">${oneLine ? `<div class="sb-team" style="grid-template-columns:18px 1fr"><span class="sb-logo" style="background:#5a2f82">PFL</span><span>${esc(e.away.name)}</span></div>` : team(e.away, e.home, e) + team(e.home, e.away, e)}</div>
+        <div class="sb-sit">${(e.sit || []).slice(0, e.assigned ? 1 : 2).map((x) => `<span>${esc(x)}</span>`).join('')}${e.assigned ? '<span class="sb-tag">● ASSIGNED</span>' : ''}</div>
+      </button>`;
+    };
+    // Group consecutive events by league, like the ESPN scoreboard strip.
+    let html = '', lastLeague = null;
+    L.forEach((e) => {
+      if (e.league !== lastLeague) { html += `<div class="sb-league">${esc(Desk.leagueShort(e.league))}</div>`; lastLeague = e.league; }
+      html += card(e);
+    });
+    const label = { all: 'Top Events', mine: 'My Sports', assigned: 'Assigned' }[st.liveFilter] + (st.liveNetwork !== 'all' ? ' · ' + st.liveNetwork : '');
     $('#live-banner').className = 'live-banner' + (st.compactLive ? ' compact' : '');
     $('#live-banner').innerHTML = `
-      <div class="live-label"><strong><span class="dot-live"></span>LIVE NOW</strong><span class="updated" id="live-ago">Updated ${fmtAgo(S().liveUpdatedAt)}</span></div>
-      <div class="live-rail" role="list" aria-label="Live events">${L.length ? L.map((e) => `
-        <div class="live-card" role="listitem" data-e="${e.id}">
-          <div class="lc-top">${badge(e)}<span>${esc(Desk.leagueShort(e.league))}</span><span class="lc-net">· ${esc(e.network)}</span></div>
-          <div class="lc-teams">${team(e.away, e.home, e)}${team(e.home, e.away, e)}</div>
-          <div class="lc-status" data-clock="${e.id}">${esc(liveStatusText(e))}</div>
-          <div class="lc-actions">${e.status === 'PRE_GAME' ? `<button class="btn-mini" data-act="live-remind" data-e="${e.id}">Remind</button>` : `<button class="btn-mini primary" data-act="live-watch" data-e="${e.id}">${e.replay ? 'Replay' : 'Watch'}</button>`}<button class="btn-mini" data-act="live-save" data-e="${e.id}">Save</button>${e.assigned ? '<span class="lc-asg">● ASSIGNED</span>' : ''}</div>
-        </div>`).join('') : '<div style="padding:14px;color:var(--shell-muted);font-size:13px">No events match this filter.</div>'}</div>
-      <div class="live-controls">
-        ${[['all', 'All'], ['mine', 'My sports'], ['assigned', 'Assigned']].map(([k, l]) => `<button class="chip-dark ${k === 'all' ? '' : 'hide-sm'}" data-act="live-filter" data-f="${k}" aria-pressed="${st.liveFilter === k}">${l}</button>`).join('')}
-        <select class="chip-dark hide-sm" data-inp="live-net" aria-label="Network filter"><option value="all">All networks</option>${nets.map((n) => `<option ${st.liveNetwork === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
-        <button class="chip-dark hide-sm" data-act="live-hide" aria-pressed="${st.hideScores}" title="Hide scores">Hide scores</button>
-        <button class="chip-dark" data-act="live-compact" aria-pressed="${st.compactLive}" title="Compact mode">Compact</button>
-        <a class="chip-dark hide-sm" href="#/live" style="text-decoration:none">View all →</a>
-      </div>`;
-    const nr = $('.live-rail'); if (nr) nr.scrollLeft = sl;
+      <div class="sb-lead"><button class="sb-events" data-act="live-menu" aria-haspopup="true"><span>${esc(label)}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+        <span class="sb-updated"><span class="dot-live"></span><span id="live-ago">Updated ${fmtAgo(S().liveUpdatedAt)}</span></span></div>
+      <button class="sb-arrow" data-act="live-scroll" data-d="-1" aria-label="Scroll left" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <div class="live-rail" role="list" aria-label="Live events">${html || '<div class="sb-empty">No events match this filter.</div>'}</div>
+      <button class="sb-arrow" data-act="live-scroll" data-d="1" aria-label="Scroll right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>`;
+    const nr = $('.live-rail');
+    if (nr) { nr.scrollLeft = sl; nr.addEventListener('scroll', updateArrows, { passive: true }); updateArrows(); }
+  }
+  function updateArrows() {
+    const r = $('.live-rail'); if (!r) return;
+    const [l, rt] = $$('.sb-arrow');
+    l.hidden = r.scrollLeft < 4;
+    rt.hidden = r.scrollLeft + r.clientWidth >= r.scrollWidth - 4;
+  }
+  function liveMenu() {
+    const st = S().settings;
+    const nets = [...new Set(S().live.map((e) => e.network))];
+    const ck = (on) => (on ? '<span class="ck">✓</span>' : '');
+    return `<div class="ph">Show</div>${[['all', 'Top Events'], ['mine', 'My Sports'], ['assigned', 'Assigned to me']].map(([k, l]) => `<button class="pi pop-check" data-act="live-filter" data-f="${k}">${l}${ck(st.liveFilter === k)}</button>`).join('')}
+      <div class="ph">Network</div>${[['all', 'All networks']].concat(nets.map((n) => [n, n])).map(([k, l]) => `<button class="pi pop-check" data-act="live-net" data-n="${esc(k)}">${esc(l)}${ck(st.liveNetwork === k)}</button>`).join('')}
+      <div class="ph">Display</div>
+      <button class="pi pop-check" data-act="live-hide">Hide scores${ck(st.hideScores)}</button>
+      <button class="pi pop-check" data-act="live-compact">Compact mode${ck(st.compactLive)}</button>
+      <button class="pi" data-act="go" data-h="#/live">View all live events →</button>`;
   }
 
   let tickN = 0;
@@ -158,9 +201,9 @@
     if (tickN % 15 === 0) st.liveUpdatedAt = Date.now();
     if (scoreChanged || statusChanged) {
       renderLiveBanner();
-      st.live.forEach((e) => [e.home, e.away].forEach((t) => { if (t && t.flash) { $$(`[data-e="${e.id}"] [data-score="${t.abbr}"]`).forEach((el) => el.classList.add('score-flash')); t.flash = false; } }));
+      st.live.forEach((e) => [e.home, e.away].forEach((t) => { if (t && t.flash) { $$(`.sb-card[data-e="${e.id}"] [data-score="${t.abbr}"]`).forEach((el) => el.classList.add('score-flash')); t.flash = false; } }));
     } else {
-      st.live.forEach((e) => { const el = $(`[data-clock="${e.id}"]`); if (el) el.textContent = liveStatusText(e); });
+      st.live.forEach((e) => { const el = $(`[data-clock="${e.id}"]`); if (el) el.textContent = bannerStatus(e); });
     }
     const ago = $('#live-ago'); if (ago) ago.textContent = 'Updated ' + fmtAgo(st.liveUpdatedAt);
     const ago2 = $('[data-live-ago]'); if (ago2) ago2.textContent = fmtAgo(st.liveUpdatedAt);
@@ -186,7 +229,7 @@
     const viewFn = Desk.views[r.name] || Desk.views.home;
     if (r.name !== 'video') stopPlayer();
     else setupPlayer(r.arg, r.params);
-    const out = r.name === 'sport' || r.name === 'video' ? viewFn(r.arg) : viewFn();
+    const out = r.name === 'sport' || r.name === 'video' ? viewFn(r.arg, r.params) : viewFn();
     const main = $('#main');
     const keepScroll = key === lastKey ? main.scrollTop : 0;
     main.innerHTML = out.html;
@@ -195,6 +238,7 @@
     $('#rail').innerHTML = out.rail ? Desk.rail() : '';
     lastKey = key;
     renderSidebar();
+    renderLeagueLinks();
     renderTopMeta();
     $('#app').classList.remove('nav-open');
     if (r.name === 'video') mountPlayer();
@@ -294,12 +338,20 @@
   ];
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const plural = (n, one, many) => (n === 1 ? one : many);
+  function setRefreshBtn(state) {
+    const btn = $('#refresh-btn');
+    btn.disabled = state === 'busy';
+    btn.classList.toggle('done', state === 'done');
+    const icon = state === 'busy' ? ic('refresh').replace('<svg', '<svg class="spin"') : state === 'done' ? ic('check') : ic('refresh');
+    const label = state === 'busy' ? 'Refreshing…' : state === 'done' ? `Updated ${fmtTime(S().lastRefresh)}` : 'Refresh ESPN Now';
+    btn.innerHTML = `<span class="tool-ic">${icon}</span><span class="lbl">${label}</span>`;
+  }
   async function doRefresh() {
     if (U.refresh && U.refresh.running) return;
     const R = (U.refresh = { running: true, idx: 0, counts: { videos: 0, interviews: 0, assign: 0, live: 0, replays: 0, transcripts: 0 }, added: [] });
     const btn = $('#refresh-btn');
     btn.disabled = true; btn.classList.remove('done');
-    btn.innerHTML = `${ic('refresh').replace('<svg', '<svg class="spin"')} <span class="lbl">Refreshing…</span>`;
+    setRefreshBtn('busy');
     renderDrawer();
     for (let i = 0; i < STEPS.length; i++) {
       R.idx = i;
@@ -322,8 +374,8 @@
     save();
     renderDrawer();
     btn.disabled = false; btn.classList.add('done');
-    btn.innerHTML = `${ic('check')} <span class="lbl">Updated ${fmtTime(st.lastRefresh)}</span>`;
-    setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = `${ic('refresh')} <span class="lbl">Refresh ESPN Now</span>`; }, 5000);
+    setRefreshBtn('done');
+    setTimeout(() => setRefreshBtn('idle'), 5000);
     setTimeout(() => { if (U.refresh === R) { U.refresh = null; const d = $('#refresh-drawer'); if (d) d.remove(); } }, 9000);
     renderLiveBanner();
     if (route().name !== 'video') rerender(); else { renderSidebar(); renderTopMeta(); }
@@ -845,7 +897,7 @@
 
   // ================= Event delegation =================
   document.addEventListener('click', (e) => {
-    if (U.popover && !U.popover.contains(e.target) && !e.target.closest('[data-act="asg-snooze"],[data-act="asg-remind"],[data-act="asg-more"]')) closePopover();
+    if (U.popover && !U.popover.contains(e.target) && !e.target.closest('[data-act="asg-snooze"],[data-act="asg-remind"],[data-act="asg-more"],[data-act="live-menu"]')) closePopover();
     if (e.target.matches('[data-overlay]')) { closeLayer(); return; }
     const el = e.target.closest('[data-act]');
     if (!el) return;
@@ -873,6 +925,9 @@
       'nav-toggle': () => $('#app').classList.toggle('nav-open'),
       'sidebar-compact': () => { st.settings.compactSidebar = !st.settings.compactSidebar; save(); renderSidebar(); },
       // live banner
+      'live-menu': () => popover(el, liveMenu()),
+      'live-scroll': () => { const r = $('.live-rail'); r.scrollBy({ left: +d.d * r.clientWidth * 0.8 }); },
+      'live-net': () => { st.settings.liveNetwork = d.n; save(); renderLiveBanner(); },
       'live-filter': () => { st.settings.liveFilter = d.f; save(); renderLiveBanner(); },
       'live-hide': () => { st.settings.hideScores = !st.settings.hideScores; save(); renderLiveBanner(); if (route().name === 'live') rerender(); },
       'live-compact': () => { st.settings.compactLive = !st.settings.compactLive; save(); renderLiveBanner(); },
@@ -979,6 +1034,8 @@
     save(); renderTimeline(); updatePlayerUI(); if (P.tab === 'notes') renderAIBody(); renderTranscript();
     toast(`Bookmarked ${fmtDur(P.pos)}`);
   }
+
+  document.addEventListener('toggle', (e) => { if (e.target.matches && e.target.matches('[data-brief-toggle]')) U.briefOpen = e.target.open; }, true);
 
   // Inputs
   function onInput(e) {
@@ -1089,7 +1146,7 @@
     }
     if (typing || e.metaKey || e.ctrlKey || e.altKey || $('#layer').innerHTML) return;
     const k = e.key;
-    if (k === '/') { e.preventDefault(); $('#global-search').focus(); return; }
+    if (k === '/') { e.preventDefault(); openPalette(); return; }
     if (k === '?') { shortcuts(); return; }
     if (route().name === 'video' && U.player) {
       const P = U.player;
@@ -1110,7 +1167,9 @@
 
   // ================= Boot =================
   window.addEventListener('hashchange', render);
+  window.addEventListener('resize', () => updateArrows());
   window.addEventListener('beforeunload', () => { persistPos(); try { localStorage.setItem('espn-video-desk:v1', JSON.stringify(Desk.S)); } catch (e) { /* ignore */ } });
+  setRefreshBtn('idle');
   renderLiveBanner();
   render();
   checkReminders();

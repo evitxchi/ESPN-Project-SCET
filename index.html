@@ -16,23 +16,21 @@
 
     <header class="topbar">
       <button class="icon-btn mobile-only" data-act="nav-toggle" aria-label="Open navigation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-      <a class="brand" href="#/home" style="text-decoration:none;color:inherit"><span class="brand-mark">ESPN</span> VIDEO DESK <small>internal</small></a>
-      <div class="searchbar" role="search">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="global-search" placeholder="Search videos, or ask anything…" aria-label="Search or ask">
-        <button class="kbd" data-act="palette-open" style="background:none;color:inherit;cursor:pointer" aria-label="Open command palette">⌘K</button>
-      </div>
-      <div class="refresh">
-        <div class="refresh-meta" id="refresh-meta"></div>
-        <button class="btn-refresh" id="refresh-btn" data-act="refresh" title="Updates assignments, live events, schedules, newly available video, and your personalized daily feed. (R)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          <span class="lbl">Refresh ESPN Now</span>
+      <a class="espn-logo" href="#/home" aria-label="ESPN Video Desk home"><span>ESPN</span></a>
+      <a class="product" href="#/home">Video Desk</a>
+      <nav class="league-links" id="league-links" aria-label="Leagues"></nav>
+      <div class="nav-right">
+        <button class="nav-tool refresh-tool" id="refresh-btn" data-act="refresh" title="Updates assignments, live events, schedules, newly available video, and your personalized daily feed. (R)"></button>
+        <span class="refresh-meta" id="refresh-meta"></span>
+        <button class="nav-tool hide-sm" data-act="go" data-h="#/assignments" title="Assignments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg><span class="lbl">Assignments</span></button>
+        <button class="nav-tool hide-sm" data-act="go" data-h="#/chat" title="Ask ESPN"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="lbl">Ask ESPN</span></button>
+        <button class="icon-btn" data-act="palette-open" aria-label="Search (⌘K)" title="Search or ask (⌘K)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+        <button class="icon-btn" data-act="notif-toggle" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="badge-count" id="bell-count" hidden></span>
         </button>
+        <a class="icon-btn" href="#/settings" aria-label="Profile and settings"><span class="avatar">M</span></a>
       </div>
-      <button class="icon-btn" data-act="notif-toggle" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span class="badge-count" id="bell-count" hidden></span>
-      </button>
     </header>
 
     <div class="body-grid">

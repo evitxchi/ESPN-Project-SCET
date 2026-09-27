@@ -364,14 +364,14 @@
 
   // --- Live events (PRD §10, §47) --------------------------------------------
   const LIVE_EVENTS = [
-    { id: 'e1', sport: 'basketball', league: 'WNBA', status: 'LIVE', away: { abbr: 'NY', name: 'Liberty', score: 58 }, home: { abbr: 'LV', name: 'Aces', score: 61 }, period: 'Q3', clock: 412, network: 'ESPN', videoId: 'vlive', assigned: true },
-    { id: 'e2', sport: 'football', league: 'NCAA Football', status: 'LIVE', away: { abbr: 'LSU', name: 'LSU', score: 17 }, home: { abbr: 'MISS', name: 'Ole Miss', score: 20 }, period: 'Q3', clock: 318, network: 'ABC' },
-    { id: 'e3', sport: 'baseball', league: 'MLB', status: 'LIVE', away: { abbr: 'NYY', name: 'Yankees', score: 3 }, home: { abbr: 'BAL', name: 'Orioles', score: 2 }, period: 'Top 7', clock: null, network: 'ESPN2' },
-    { id: 'e4', sport: 'soccer', league: 'LALIGA', status: 'LIVE', away: { abbr: 'VIL', name: 'Villarreal', score: 1 }, home: { abbr: 'BAR', name: 'Barcelona', score: 2 }, period: "67'", clock: 67 * 60, clockUp: true, network: 'ESPN+' },
-    { id: 'e5', sport: 'tennis', league: 'WTA', status: 'LIVE', away: { abbr: 'KIM', name: 'J. Kim', score: 1 }, home: { abbr: 'VAR', name: 'E. Varga', score: 1 }, period: 'Set 3', detail: '4–3', clock: null, network: 'ESPN+' },
-    { id: 'e6', sport: 'hockey', league: 'NHL', status: 'HALFTIME', away: { abbr: 'NYR', name: 'Rangers', score: 1 }, home: { abbr: 'BOS', name: 'Bruins', score: 1 }, period: '2nd Int', clock: null, network: 'ESPN+' },
-    { id: 'e7', sport: 'mma', league: 'Professional Fighters League', status: 'PRE_GAME', away: { abbr: '', name: 'PFL Playoffs: Main Card', score: null }, home: null, period: 'Starts 9:00 PM', clock: null, network: 'ESPN2' },
-    { id: 'e8', sport: 'football', league: 'NCAA Football', status: 'FINAL', away: { abbr: 'ALA', name: 'Alabama', score: 28 }, home: { abbr: 'UGA', name: 'Georgia', score: 31 }, period: 'Final', clock: null, network: 'ABC', videoId: 'v9', replay: true },
+    { id: 'e1', sport: 'basketball', league: 'WNBA', status: 'LIVE', away: { abbr: 'NY', name: 'Liberty', score: 58 }, home: { abbr: 'LV', name: 'Aces', score: 61 }, period: 'Q3', clock: 412, network: 'ESPN', videoId: 'vlive', assigned: true, sit: ['Series 1–1', 'LV bonus'] },
+    { id: 'e2', sport: 'football', league: 'NCAA Football', status: 'LIVE', away: { abbr: 'LSU', name: 'LSU', score: 17 }, home: { abbr: 'MISS', name: 'Ole Miss', score: 20 }, period: 'Q3', clock: 318, network: 'ABC', poss: 'home', sit: ['2nd & 7', 'LSU 34'] },
+    { id: 'e3', sport: 'baseball', league: 'MLB', status: 'LIVE', away: { abbr: 'NYY', name: 'Yankees', score: 3 }, home: { abbr: 'BAL', name: 'Orioles', score: 2 }, period: 'Top 7', clock: null, network: 'ESPN2', sit: ['1 out', 'Runner on 2nd'] },
+    { id: 'e4', sport: 'soccer', league: 'LALIGA', status: 'LIVE', away: { abbr: 'VIL', name: 'Villarreal', score: 1 }, home: { abbr: 'BAR', name: 'Barcelona', score: 2 }, period: "67'", clock: 67 * 60, clockUp: true, network: 'ESPN+', sit: ['2nd half', 'Matchday 7'] },
+    { id: 'e5', sport: 'tennis', league: 'WTA', status: 'LIVE', away: { abbr: 'KIM', name: 'J. Kim', score: 1 }, home: { abbr: 'VAR', name: 'E. Varga', score: 1 }, period: 'Set 3', detail: '4–3', clock: null, network: 'ESPN+', sit: ['Games 4–3', 'Varga serving'] },
+    { id: 'e6', sport: 'hockey', league: 'NHL', status: 'HALFTIME', away: { abbr: 'NYR', name: 'Rangers', score: 1 }, home: { abbr: 'BOS', name: 'Bruins', score: 1 }, period: '2nd Int', clock: null, network: 'ESPN+', sit: ['Preseason', 'SOG 18–21'] },
+    { id: 'e7', sport: 'mma', league: 'Professional Fighters League', status: 'PRE_GAME', away: { abbr: '', name: 'PFL Playoffs: Main Card', score: null }, home: null, period: '9:00 PM', clock: null, network: 'ESPN2', sit: ['Main card', 'Playoffs'] },
+    { id: 'e8', sport: 'football', league: 'NCAA Football', status: 'FINAL', away: { abbr: 'ALA', name: 'Alabama', score: 28 }, home: { abbr: 'UGA', name: 'Georgia', score: 31 }, period: 'Final', clock: null, network: 'ABC', videoId: 'v9', replay: true, sit: ['Replay', 'available'] },
   ];
 
   // --- Assignments (PRD §12) --------------------------------------------------

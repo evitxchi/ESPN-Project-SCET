@@ -367,6 +367,41 @@
     if (inj.length) sections.push({ h: 'Injury & roster developments', items: inj.map((x) => `${attributed(x.v, x.s)} ${cite(x.v.id, x.s.t, true)}`) });
     return sections;
   }
+  // Glanceable digest for the home card: counts + at most 3 one-line takeaways + new videos.
+  // Only strip verbs that leave a complete clause behind ("Said the QB is sore…" → "The QB is sore…").
+  const LEAD_VERB = /^(said|reported|noted|argued|warned)\s+(that\s+)?/i;
+  function headline(sum) {
+    const t = sum.replace(LEAD_VERB, '').replace(/,? per (her|his|their) sources\.?$/i, '').replace(/\.$/, '');
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  function briefDigest() {
+    const S = Desk.S;
+    const now = Date.now();
+    const A = S.assignments;
+    const counts = {
+      due: A.filter((a) => Desk.isDueToday(a) && !Desk.isOverdue(a)).length,
+      overdue: A.filter(Desk.isOverdue).length,
+      live: S.live.filter((e) => e.status === 'LIVE').length,
+      fresh: S.videos.filter((v) => v.publishedAt > now - 24 * H && !v.live).length,
+    };
+    const pool = [];
+    S.videos.filter((v) => v.publishedAt > now - 60 * H).forEach((v) => transcript(v.id).forEach((seg) => {
+      if (!seg.key || !seg.sum || /score|storyline/.test(seg.topic || '') || (v.live && seg.t > S.livePos)) return;
+      const role = speaker(v, seg.spk).role;
+      const cat = /injur|roster/.test(seg.topic) ? 'Injury' : D.INTERVIEWEE_ROLES.includes(role) ? 'Interview' : ['ANALYST', 'COLOR_COMMENTATOR', 'STUDIO_HOST'].includes(role) ? 'Analysis' : null;
+      if (cat) pool.push({ cat, v, seg, who: speaker(v, seg.spk).name });
+    }));
+    pool.sort((a, b) => b.v.publishedAt - a.v.publishedAt);
+    // One per category, each from a different video, so three lines cover three different stories.
+    const picks = [];
+    ['Injury', 'Interview', 'Analysis'].forEach((cat) => {
+      const x = pool.find((p) => p.cat === cat && !picks.some((q) => q.v.id === p.v.id));
+      if (x) picks.push(x);
+    });
+    const takeaways = picks.map((x) => ({ cat: x.cat, who: x.who, text: headline(x.seg.sum), vid: x.v.id, t: x.seg.t, src: shortTitle(x.v) }));
+    const fresh = S.videos.filter((v) => v.publishedAt > now - 24 * H && !v.live).sort((a, b) => b.publishedAt - a.publishedAt);
+    return { counts, takeaways, fresh };
+  }
   function eventName(e) { return e.home ? `${e.away.name} at ${e.home.name}` : e.away.name; }
 
   // ---------- Commentary records (PRD §17, §31) ----------
@@ -379,5 +414,5 @@
     return out.sort((a, b) => b.v.publishedAt - a.v.publishedAt || a.s.t - b.s.t);
   }
 
-  Object.assign(Desk, { MODEL, MODES, cite, shortTitle, spkName, roleTag, attributed, retrieve, answer, findSeg, summarize, brief, eventName, commentaryRecords, scopeLabel, toks });
+  Object.assign(Desk, { MODEL, MODES, cite, shortTitle, spkName, roleTag, attributed, retrieve, answer, findSeg, summarize, brief, briefDigest, eventName, commentaryRecords, scopeLabel, toks });
 })();

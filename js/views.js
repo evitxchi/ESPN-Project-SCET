@@ -204,10 +204,9 @@
         <div class="changes">${S.changes.map((c) => `<div class="change ${c.n && c.fresh ? 'new' : ''}"><b>${c.n ? '+' + c.n : '0'}</b> ${esc(c.label)}</div>`).join('')}</div>
       </section>
 
-      <section class="section card">
-        <div class="card-pad" style="padding-bottom:0">${secHead(`Daily ESPN brief <span class="trust ai">AI summary</span>`, `Generated ${fmtTime(S.briefAt)} from approved feeds · every video claim cited`)}</div>
-        <div class="brief">${sections.map((s) => `<h3>${esc(s.h)}</h3><ul>${s.items.map((i) => `<li>${i}</li>`).join('')}</ul>`).join('')}</div>
-        <div class="ai-meta" style="margin:10px 16px 14px">Model ${Desk.MODEL} · template brief@2.1 · ${sections.reduce((n, s) => n + s.items.length, 0)} items · unchanged stories suppressed</div>
+      <section class="section card" id="brief">
+        <div class="brief-head"><h2>Daily ESPN brief</h2><span class="trust ai">AI summary</span><span class="spacer"></span><span class="tiny muted">Updated ${fmtTime(S.briefAt)}</span></div>
+        ${briefCard(sections)}
       </section>
 
       <section class="section">${secHead('Continue watching')}
@@ -220,6 +219,32 @@
       <div class="demo-note">Demo data — leagues and teams are real; all people, quotes, and transcripts are fictional.</div>`,
     };
   }
+  const CAT_STYLE = { Injury: 'b-red', Interview: 'b-green', Analysis: 'b-blue' };
+  function briefCard(sections) {
+    const g = Desk.briefDigest();
+    const c = g.counts;
+    const stat = (n, label, cls, act) => `<button class="brief-stat ${n && cls ? cls : ''}" ${act}><b>${n}</b>${label}</button>`;
+    const fresh = g.fresh.slice(0, 3);
+    return `<div class="brief-stats">
+        ${stat(c.overdue, 'overdue', 'is-red', 'data-act="asg-jump" data-f="overdue"')}
+        ${stat(c.due, 'due today', 'is-amber', 'data-act="asg-jump" data-f="today"')}
+        ${stat(c.live, 'live now', '', 'data-act="go" data-h="#/live"')}
+        ${stat(c.fresh, 'new videos', '', 'data-act="go" data-h="#/library"')}
+      </div>
+      ${g.takeaways.length ? `<div class="brief-sub">Key takeaways</div>
+      <ul class="takeaways">${g.takeaways.map((k) => `<li><button class="takeaway" data-act="seek" data-v="${k.vid}" data-t="${k.t}" title="${esc(k.who)}: ${esc(k.text)} — ${esc(k.src)} at ${fmtDur(k.t)}">
+          <span class="badge nodot ${CAT_STYLE[k.cat]}">${k.cat}</span>
+          <span class="tk-text">${esc(k.text)}</span>
+          <span class="tk-src">${esc(k.who)} · ${fmtDur(k.t)} ${ic('play')}</span></button></li>`).join('')}</ul>` : ''}
+      ${fresh.length ? `<div class="brief-sub">New to watch</div>
+      <div class="brief-fresh">${fresh.map((v) => `<a class="fresh-chip" href="#/video/${v.id}">${glyph(v.sport)}<span>${esc(Desk.shortTitle(v))}</span></a>`).join('')}${g.fresh.length > 3 ? `<a class="fresh-chip more" href="#/library">+${g.fresh.length - 3} more</a>` : ''}</div>` : ''}
+      <details class="brief-more" ${U.briefOpen ? 'open' : ''} data-brief-toggle>
+        <summary>Show full brief</summary>
+        <div class="brief">${sections.map((sec) => `<h3>${esc(sec.h)}</h3><ul>${sec.items.map((i) => `<li>${i}</li>`).join('')}</ul>`).join('')}</div>
+        <div class="ai-meta" style="margin:10px 0 0">Model ${Desk.MODEL} · template brief@2.1 · every video claim cited · unchanged stories suppressed</div>
+      </details>`;
+  }
+
   // PRD §33 — secondary to assignments; never optimize for watch time.
   function recommended() {
     const S = Desk.S;
@@ -544,20 +569,22 @@
   }
 
   // ---------- Sport landing (PRD §27) ----------
-  function sport(id) {
+  function sport(id, params) {
     const S = Desk.S;
     const sp = sportById(id);
-    const vids = S.videos.filter((v) => v.sport === id).sort((a, b) => b.publishedAt - a.publishedAt);
-    const liveE = S.live.filter((e) => e.sport === id);
-    const asg = sortByDue(S.assignments.filter((a) => video(a.videoId).sport === id));
+    const league = params && params.get('league');
+    const inLeague = (l) => !league || l === league;
+    const vids = S.videos.filter((v) => v.sport === id && inLeague(v.league)).sort((a, b) => b.publishedAt - a.publishedAt);
+    const liveE = S.live.filter((e) => e.sport === id && inLeague(e.league));
+    const asg = sortByDue(S.assignments.filter((a) => video(a.videoId).sport === id && inLeague(video(a.videoId).league)));
     const tags = [...new Set(vids.flatMap((v) => v.tags || []))];
     const leagues = sp.leagues.length ? sp.leagues : [];
     return {
       rail: true,
-      html: `<div class="page-head"><div class="row" style="gap:12px">${glyph(id).replace('sport-glyph"', 'sport-glyph" style="width:40px;height:40px;font-size:14px;border-radius:8px;background:' + sportStyle(id)[0] + '"')}<div><h1>${esc(sp.name)}</h1><div class="sub">${esc(sp.family || '')} · ${vids.length} videos · ${asg.length} assignments</div></div></div></div>
-        <div class="filters">${leagues.map((l) => `<button class="pill clickable league" data-act="lib-league" data-l="${esc(l)}">${esc(l)}</button>`).join('')}</div>
+      html: `<div class="page-head"><div class="row" style="gap:12px">${glyph(id).replace('sport-glyph"', 'sport-glyph" style="width:40px;height:40px;font-size:14px;border-radius:8px;background:' + sportStyle(id)[0] + '"')}<div><h1>${esc(league || sp.name)}</h1><div class="sub">${league ? esc(sp.name) + ' · ' : esc(sp.family || '') + ' · '}${vids.length} videos · ${asg.length} assignments</div></div></div></div>
+        <div class="filters"><a class="pill clickable league" href="#/sport/${id}" style="text-decoration:none;${!league ? 'background:var(--text);color:#fff;border-color:var(--text)' : ''}">All ${esc(sp.name)}</a>${leagues.map((l) => `<a class="pill clickable league" href="#/sport/${id}?league=${encodeURIComponent(l)}" style="text-decoration:none;${league === l ? 'background:var(--text);color:#fff;border-color:var(--text)' : ''}">${esc(l)}</a>`).join('')}</div>
         ${liveE.length ? `<section class="section">${secHead('Live now')}<div class="grid-3">${liveE.map(liveCardBig).join('')}</div></section>` : ''}
-        <section class="section">${secHead('Assigned to me', asg.length ? `<button class="link-btn" data-act="asg-jump" data-f="sport:${id}">View in Assignments →</button>` : '')}${asg.length ? `<div class="card">${asg.map(asgRow).join('')}</div>` : empty('No assignments in ' + sp.name)}</section>
+        <section class="section">${secHead('Assigned to me', asg.length ? `<button class="link-btn" data-act="asg-jump" data-f="sport:${id}">View in Assignments →</button>` : '')}${asg.length ? `<div class="card">${asg.map(asgRow).join('')}</div>` : empty('No assignments in ' + (league || sp.name))}</section>
         <section class="section">${secHead('Latest')}${vids.length ? `<div class="grid-3">${vids.slice(0, 6).map((v) => vcard(v)).join('')}</div>` : empty('No videos yet', 'Content appears here after the next catalog sync.')}</section>
         ${tags.length ? `<section class="section">${secHead('Topics')}<div class="row wrap">${tags.map((t) => `<button class="pill clickable" data-act="lib-tag" data-t="${esc(t)}" data-s="${id}">${esc(t)}</button>`).join('')}</div></section>` : ''}
         <section class="section card card-pad">${secHead('Ask ' + esc(sp.name))}
